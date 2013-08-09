@@ -1,4 +1,4 @@
-module LocalFiles (parseAndGroupFiles) where
+module LocalFiles (parseAndGroupFiles, parseQuizFiles) where
 
 import Distribution.Simple.Utils
 import Chapter.Files
@@ -10,9 +10,16 @@ import Control.Monad
 import Quiz.Parser
 --import Quiz.Types
 import Data.Aeson
-import System.IO
+--import System.IO
 import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Char (isDigit)
+
+parseQuizFiles :: FilePath -> IO [ChapterFiles]
+parseQuizFiles d = do
+  let d' = addTrailingPathSeparator d
+  paths <- fmap (map (d' ++)) (getDirectoryContentsRecursive d)
+  rush' paths
+
 
 parseAndGroupFiles :: FilePath -> IO [ChapterFiles]
 parseAndGroupFiles d = do
@@ -20,14 +27,31 @@ parseAndGroupFiles d = do
   paths <- fmap (map (d' ++)) ( getDirectoryContentsRecursive d )
   rush paths
 
-rush :: [FilePath] -> IO [ChapterFiles]
-rush fp = do
+rush' :: [FilePath] -> IO [ChapterFiles]
+rush' fp = do
+  let qp = filter isQuiz fp
+      qpJSON = map (`replaceExtension` "json") qp
+  rtfToJSON fp
+  let onlyQuizFiles = foldr insertFold Map.empty qpJSON 
+      insertFold p m = let (n,cname) = numberAndName p
+                           chap = Chapter n cname
+                       in Map.insert n (ChapterFiles chap [p] []) m
+  return $ map snd (Map.toList onlyQuizFiles)
+
+rtfToJSON :: [FilePath] -> IO ()
+rtfToJSON fp = do
   let qp = filter isQuiz fp
       qpTxt = map (`replaceExtension` "txt") qp
       qpJSON = map (`replaceExtension` "json") qp
-      vp = filter isVideo fp
   zipWithM_ rtfToTxt qp qpTxt
   zipWithM_ convertJSON qpTxt qpJSON
+
+rush :: [FilePath] -> IO [ChapterFiles]
+rush fp = do
+  let qp = filter isQuiz fp
+      qpJSON = map (`replaceExtension` "json") qp
+      vp = filter isVideo fp
+  rtfToJSON fp
   let onlyQuizFiles = foldr insertFold Map.empty qpJSON 
       insertFold p m = let (n,cname) = numberAndName p
                            chap = Chapter n cname
