@@ -51,6 +51,7 @@ rush fp = do
   let qp = filter isQuiz fp
       qpJSON = map (`replaceExtension` "json") qp
       vp = filter isVideo fp
+  print vp
   rtfToJSON fp
   let onlyQuizFiles = foldr insertFold Map.empty qpJSON 
       insertFold p m = let (n,cname) = numberAndName p
@@ -86,5 +87,6 @@ isQuiz fp = takeExtension fp == ".rtf" && head fn `elem` ['0'..'9']
   where fn = takeFileName fp
 
 isVideo :: FilePath -> Bool
-isVideo fp = takeExtension fp == ".mov" && head fn == 'V'
+isVideo fp = (ext `elem` [".mov", ".m4v"]) && head fn == 'V'
   where fn = takeFileName fp
+        ext = takeExtension fn
