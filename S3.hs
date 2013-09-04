@@ -5,11 +5,11 @@ import Network.AWS.AWSConnection
 import Data.ByteString.Lazy (hGetContents)
 import Network.AWS.AWSResult
 import System.IO hiding (hGetContents)
-import Data.Maybe
+--import Data.Maybe
 
 awsConn :: IO AWSConnection
 awsConn = do
-    accessID:secretKey:_ <- fmap lines (readFile "S3.config")
+    accessID:secretKey:_ <- fmap lines (readFile "S3-access.config")
     return $ amazonS3Connection  accessID secretKey
 
 -- mapping from s3 file name to local file path
@@ -17,10 +17,14 @@ type S3FileMapping = (String, FilePath)
 
 batchUpload :: [S3FileMapping] -> IO [AWSResult ()]
 batchUpload l = do
-  conn <- fmap fromJust amazonS3ConnectionFromEnv
+--  conn <- fmap fromJust amazonS3ConnectionFromEnv
+  conn <- awsConn
+  print conn
   mapM (\x -> do obj <- makeObject x 
                  explain x
-                 sendObject conn obj) l
+                 result <- sendObject conn obj
+                 print result
+                 return result) l
 
 
 explain :: S3FileMapping -> IO ()
@@ -30,5 +34,6 @@ makeObject :: S3FileMapping -> IO S3Object
 makeObject (name, path) = do
   h <- openFile path ReadMode
   content <- hGetContents h
-  bucketName <- readFile "S3.config"
+  bucketName:_ <- fmap lines $ readFile "S3.config"
+  print bucketName
   return $ S3Object bucketName name "" [] content
